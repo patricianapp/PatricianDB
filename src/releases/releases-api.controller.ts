@@ -2,7 +2,7 @@ import { Controller, Get, Param } from '@nestjs/common';
 import { ReleasesService } from 'src/releases/releases.service';
 
 @Controller('api')
-export class ApiController {
+export class ReleasesApiController {
   constructor(private releasesService: ReleasesService) {}
 
   @Get(':id')

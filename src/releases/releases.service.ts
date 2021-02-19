@@ -18,6 +18,7 @@ export class ReleasesService {
       'url-rels',
       'releases',
     ]);
+    (releaseGroup as any).foo = 'bar';
     return releaseGroup;
   }
 
