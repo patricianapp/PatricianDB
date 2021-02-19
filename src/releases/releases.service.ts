@@ -7,9 +7,9 @@ export class ReleasesService {
   private mbApi: MusicBrainzApi;
   constructor() {
     this.mbApi = new MusicBrainzApi({
-      appName: 'Seikilos',
+      appName: 'PatricianDB',
       appVersion: '0.0.1', // TODO: Use package.json version
-      appContactInfo: 'https://github.com/patricianapp/seikilos',
+      appContactInfo: 'https://github.com/patricianapp/PatricianDB',
     });
   }
 

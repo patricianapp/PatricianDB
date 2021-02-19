@@ -10,7 +10,8 @@ async function bootstrap() {
     graphbrainz({
       client: new MusicBrainz({
         baseURL: 'http://localhost:3000/musicbrainz/ws/2',
-        userAgent: 'Seikilos/0.0.1 (https://github.com/patricianapp/seikilos)',
+        userAgent:
+          'PatricianDB/0.0.1 (https://github.com/patricianapp/PatricianDB)',
       }),
       graphiql: false,
     }),
