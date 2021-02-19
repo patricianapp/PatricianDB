@@ -16,7 +16,6 @@ export class ReleasesApiController {
     @Param('artist') artist: string,
     @Param('title') title: string,
   ): any {
-    console.log(artist, title);
     const album = this.releasesService.getByArtistTitle(artist, title);
     return album;
   }

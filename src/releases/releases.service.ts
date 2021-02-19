@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { MusicBrainzApi } from 'musicbrainz-api';
+import * as MetadataFilter from 'metadata-filter';
 
 @Injectable()
 export class ReleasesService {
@@ -23,16 +24,17 @@ export class ReleasesService {
   }
 
   async getByArtistTitle(artist: string, title: string): Promise<any> {
+    const filter = MetadataFilter.createSpotifyFilter().extend(
+      MetadataFilter.createAmazonFilter(),
+    );
+    const filteredArtist = filter.filterField('albumArtist', artist);
+    const filteredTitle = filter.filterField('track', title);
+
     const releaseGroup = await this.mbApi.searchReleaseGroup({
-      artist,
-      releasegroup: title,
+      artist: filteredArtist,
+      releasegroup: filteredTitle,
     });
+    console.log(`Searching for ${filteredArtist} - ${filteredTitle}`);
     return releaseGroup;
   }
 }
-
-// public searchReleaseGroupByTitleAndArtist(title: string, artist: string, offset?: number, limit?: number): Promise<mb.IReleaseGroupList> {
-//   const query = '"' + MusicBrainzApi.escapeText(title) + '" AND artist:"' + MusicBrainzApi.escapeText(artist) + '"';
-//   return this.query<mb.IReleaseGroupList>('release-group', {query, offset, limit});
-// }
-// }
