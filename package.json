@@ -24,6 +24,7 @@
   "dependencies": {
     "@nestjs/common": "^7.0.0",
     "@nestjs/core": "^7.0.0",
+    "@nestjs/graphql": "^7.9.9",
     "@nestjs/platform-express": "^7.0.0",
     "musicbrainz-api": "^0.5.2",
     "reflect-metadata": "^0.1.13",
