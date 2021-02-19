@@ -1,11 +1,14 @@
+import * as path from 'path';
 import { Module } from '@nestjs/common';
-import { ApiController } from './controllers/api/api.controller';
-import { WebController } from './controllers/web/web.controller';
-import { AlbumLookupService } from './services/album-lookup/album-lookup.service';
+import { GraphQLModule } from '@nestjs/graphql';
+import { ReleasesModule } from './releases/releases.module';
 
 @Module({
-  imports: [],
-  controllers: [ApiController, WebController],
-  providers: [AlbumLookupService],
+  imports: [
+    ReleasesModule,
+    GraphQLModule.forRoot({
+      autoSchemaFile: path.join(process.cwd(), 'src/schema.gql'),
+    }),
+  ],
 })
 export class AppModule {}

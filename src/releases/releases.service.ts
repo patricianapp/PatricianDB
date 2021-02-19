@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { MusicBrainzApi } from 'musicbrainz-api';
 
 @Injectable()
-export class AlbumLookupService {
+export class ReleasesService {
   private mbApi: MusicBrainzApi;
   constructor() {
     this.mbApi = new MusicBrainzApi({

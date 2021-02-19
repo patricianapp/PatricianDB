@@ -1,9 +1,9 @@
 import { Controller, Get, Param } from '@nestjs/common';
-import { AlbumLookupService } from 'src/services/album-lookup/album-lookup.service';
+import { ReleasesService } from 'src/releases/releases.service';
 
 @Controller('api')
 export class ApiController {
-  constructor(private albumLookupService: AlbumLookupService) {}
+  constructor(private albumLookupService: ReleasesService) {}
 
   @Get(':id')
   getById(@Param('id') id: string): any {
