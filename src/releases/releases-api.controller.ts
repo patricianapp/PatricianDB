@@ -3,11 +3,11 @@ import { ReleasesService } from 'src/releases/releases.service';
 
 @Controller('api')
 export class ApiController {
-  constructor(private albumLookupService: ReleasesService) {}
+  constructor(private releasesService: ReleasesService) {}
 
   @Get(':id')
   getById(@Param('id') id: string): any {
-    const album = this.albumLookupService.getById(id);
+    const album = this.releasesService.getById(id);
     return album;
   }
 
@@ -17,7 +17,7 @@ export class ApiController {
     @Param('title') title: string,
   ): any {
     console.log(artist, title);
-    const album = this.albumLookupService.getByArtistTitle(artist, title);
+    const album = this.releasesService.getByArtistTitle(artist, title);
     return album;
   }
 }
