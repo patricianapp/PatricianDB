@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { MusicBrainzApi } from 'musicbrainz-api';
-import * as MetadataFilter from 'metadata-filter';
+// import * as MetadataFilter from 'metadata-filter';
+import * as MetadataFilter from '../../lib/metadata-filter/src';
 
 @Injectable()
 export class ReleasesService {
@@ -19,7 +20,6 @@ export class ReleasesService {
       'url-rels',
       'releases',
     ]);
-    (releaseGroup as any).foo = 'bar';
     return releaseGroup;
   }
 
@@ -27,14 +27,16 @@ export class ReleasesService {
     const filter = MetadataFilter.createSpotifyFilter().extend(
       MetadataFilter.createAmazonFilter(),
     );
+    console.log(title);
     const filteredArtist = filter.filterField('albumArtist', artist);
-    const filteredTitle = filter.filterField('track', title);
+    const filteredTitle = filter.filterField('album', title);
 
     const releaseGroup = await this.mbApi.searchReleaseGroup({
       artist: filteredArtist,
       releasegroup: filteredTitle,
     });
     console.log(`Searching for ${filteredArtist} - ${filteredTitle}`);
+
     return releaseGroup;
   }
 }
