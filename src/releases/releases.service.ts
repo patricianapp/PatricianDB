@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { IReleaseGroup, MusicBrainzApi } from 'musicbrainz-api';
 // import * as MetadataFilter from 'metadata-filter';
 import * as MetadataFilter from '../../lib/metadata-filter/src';
-import { RedisClient } from 'redis';
+import { createClient, RedisClient } from 'redis';
 import { getSortedReleaseGroupResults } from './helpers/release-group-sort';
 import { paramCase } from 'change-case';
 
@@ -44,7 +44,7 @@ export class ReleasesService {
       appVersion: '0.0.1', // TODO: Use package.json version
       appContactInfo: 'https://github.com/patricianapp/PatricianDB',
     });
-    this.redis = new RedisClient({});
+    this.redis = createClient(process.env.DATABASE_URL ?? 'redis://localhost:6379');
   }
 
   private async getCachedByArtistTitle(artist: string, title: string) {
