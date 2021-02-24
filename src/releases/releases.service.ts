@@ -1,8 +1,8 @@
 import { promisify } from 'util';
 import { Injectable } from '@nestjs/common';
 import { IReleaseGroup, MusicBrainzApi } from 'musicbrainz-api';
-// import * as MetadataFilter from 'metadata-filter';
-import * as MetadataFilter from '../../lib/metadata-filter/src';
+import * as MetadataFilter from 'metadata-filter';
+// import * as MetadataFilter from '../../lib/metadata-filter/src';
 import { createClient, RedisClient } from 'redis';
 import { getSortedReleaseGroupResults } from './helpers/release-group-sort';
 import { paramCase } from 'change-case';
