@@ -100,7 +100,7 @@ interface ReleaseGroupSortFields {
   yearInput?: number;
 }
 
-type SortedResults = Array<{ confidence: number; searchResult: IReleaseGroup }>;
+export type SortedResults = Array<{ confidence: number; searchResult: IReleaseGroup }>;
 
 export function getSortedReleaseGroupResults(fields: ReleaseGroupSortFields): SortedResults {
   const { releaseGroupResults, titleInput, artistInput } = fields;

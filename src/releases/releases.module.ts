@@ -5,6 +5,7 @@ import { ReleasesService } from './releases.service';
 import { MbController } from './mb.controller';
 import { GraphBrainzController } from './graphbrainz.controller';
 import { MusicBrainzApi } from 'musicbrainz-api';
+import { createClient, RedisClient } from 'redis';
 
 @Module({
   controllers: [ReleasesController, ReleasesApiController, MbController, GraphBrainzController],
@@ -18,6 +19,12 @@ import { MusicBrainzApi } from 'musicbrainz-api';
           appVersion: '0.0.1', // TODO: Use package.json version
           appContactInfo: 'https://github.com/patricianapp/PatricianDB',
         });
+      },
+    },
+    {
+      provide: RedisClient,
+      useFactory: async (): Promise<RedisClient> => {
+        return createClient(process.env.DATABASE_URL ?? 'redis://localhost:6379');
       },
     },
   ],

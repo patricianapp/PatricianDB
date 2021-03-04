@@ -4,7 +4,7 @@ import { IReleaseGroup, MusicBrainzApi } from 'musicbrainz-api';
 import * as MetadataFilter from 'metadata-filter';
 // import * as MetadataFilter from '../../lib/metadata-filter/src';
 import { createClient, RedisClient } from 'redis';
-import { getSortedReleaseGroupResults } from './helpers/release-group-sort';
+import { getSortedReleaseGroupResults, SortedResults } from './helpers/release-group-sort';
 import { paramCase } from 'change-case';
 
 const objectToArray = <T>(obj: T): Array<keyof T | string> => {
@@ -38,12 +38,13 @@ interface GetReleaseGroupOptions {
   nocache?: boolean;
 }
 
+export type ReleaseGroupResponse = ReleaseGroupData & IReleaseGroup;
+
+export type ReleaseGroupResponseNoCache = SortedResults;
+
 @Injectable()
 export class ReleasesService {
-  private redis: RedisClient;
-  constructor(private readonly mbApi: MusicBrainzApi) {
-    this.redis = createClient(process.env.DATABASE_URL ?? 'redis://localhost:6379');
-  }
+  constructor(private readonly mbApi: MusicBrainzApi, private readonly redis: RedisClient) {}
 
   private async getCachedByArtistTitle(artist: string, title: string) {
     const hgetallAsync = promisify(this.redis.hgetall).bind(this.redis);
@@ -82,13 +83,17 @@ export class ReleasesService {
   // TODO: get by combined query
   // async getByCombinedQuery(query: string): Promise<any> {}
 
-  async getByArtistTitle(artist: string, title: string, options?: GetReleaseGroupOptions): Promise<any> {
+  async getByArtistTitle(
+    artist: string,
+    title: string,
+    options?: GetReleaseGroupOptions,
+  ): Promise<ReleaseGroupResponse | ReleaseGroupResponseNoCache> {
     // TODO: Run combined query if no match
     const filter = MetadataFilter.createSpotifyFilter().extend(MetadataFilter.createAmazonFilter());
     const filteredArtist = filter.filterField('albumArtist', artist);
     const filteredTitle = filter.filterField('album', title);
 
-    if (!options.nocache) {
+    if (options && !options.nocache) {
       const cacheResult = await this.getCachedByArtistTitle(filteredArtist, filteredTitle);
 
       if (cacheResult !== null) {
@@ -116,24 +121,28 @@ export class ReleasesService {
       titleInput: filteredTitle,
     });
 
-    this.setCachedByArtistTitle(
-      filteredArtist,
-      filteredTitle,
-      {
-        artist: sortedResults[0].searchResult['artist-credit'][0].artist.name,
-        title: sortedResults[0].searchResult.title,
-        // disambiguation: sortedResults[0].searchResult?.disambiguation,
-        firstReleaseDate: sortedResults[0].searchResult['first-release-date'] ?? undefined,
-        artistMbid: sortedResults[0].searchResult['artist-credit'][0].artist.id,
-        mbid: sortedResults[0].searchResult.id,
-        mbConfidence: sortedResults[0].confidence,
-        tracklist: ['track 1', 'track 2'],
-      },
-      sortedResults[0].searchResult,
-    );
+    const resultToSave = {
+      artist: sortedResults[0].searchResult['artist-credit'][0].artist.name,
+      title: sortedResults[0].searchResult.title,
+      // disambiguation: sortedResults[0].searchResult?.disambiguation,
+      firstReleaseDate: sortedResults[0].searchResult['first-release-date'] ?? undefined,
+      artistMbid: sortedResults[0].searchResult['artist-credit'][0].artist.id,
+      mbid: sortedResults[0].searchResult.id,
+      mbConfidence: sortedResults[0].confidence,
+      tracklist: ['track 1', 'track 2'],
+    };
+
+    this.setCachedByArtistTitle(filteredArtist, filteredTitle, resultToSave, sortedResults[0].searchResult);
 
     // Until we have better debugging options, nocache is our way of seeing all search results
     // TODO: Find better ways to debug search
-    return options.nocache ? sortedResults : sortedResults[0];
+    if (options && options.nocache) {
+      return sortedResults;
+    } else {
+      return {
+        ...resultToSave,
+        ...sortedResults[0].searchResult,
+      };
+    }
   }
 }

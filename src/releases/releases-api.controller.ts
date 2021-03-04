@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
-import { ReleasesService } from 'src/releases/releases.service';
+import { ReleasesService } from './releases.service';
 
 @Controller('api')
 export class ReleasesApiController {
