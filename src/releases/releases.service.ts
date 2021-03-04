@@ -34,22 +34,21 @@ interface ReleaseGroupData {
   youtubePlaylistId?: string;
 }
 
+interface GetReleaseGroupOptions {
+  nocache?: boolean;
+}
+
 @Injectable()
 export class ReleasesService {
-  private mbApi: MusicBrainzApi;
   private redis: RedisClient;
-  constructor() {
-    this.mbApi = new MusicBrainzApi({
-      appName: 'PatricianDB',
-      appVersion: '0.0.1', // TODO: Use package.json version
-      appContactInfo: 'https://github.com/patricianapp/PatricianDB',
-    });
+  constructor(private readonly mbApi: MusicBrainzApi) {
     this.redis = createClient(process.env.DATABASE_URL ?? 'redis://localhost:6379');
   }
 
   private async getCachedByArtistTitle(artist: string, title: string) {
     const hgetallAsync = promisify(this.redis.hgetall).bind(this.redis);
     const get = promisify(this.redis.get).bind(this.redis);
+
     const releaseGroupData = await hgetallAsync(`release-group:${paramCase(artist)}:${paramCase(title)}`);
     if (releaseGroupData === null) {
       return null;
@@ -61,13 +60,16 @@ export class ReleasesService {
     };
   }
 
-  private async setCachedByArtistTitle(input: ReleaseGroupData, mb?: IReleaseGroup) {
-    const releaseGroupKey = `release-group:${paramCase(input.artist)}:${paramCase(input.title)}`;
+  private async setCachedByArtistTitle(
+    searchArtist: string,
+    searchTitle: string,
+    input: ReleaseGroupData,
+    mb?: IReleaseGroup,
+  ) {
+    const releaseGroupKey = `release-group:${paramCase(searchArtist)}:${paramCase(searchTitle)}`;
     this.redis.hset(releaseGroupKey, ...objectToArray(input));
 
     const mbKey = `mb-release-group:${mb.id}`;
-    console.log(mbKey);
-    console.log(JSON.stringify(mb));
     this.redis.set(mbKey, JSON.stringify(mb));
     this.redis.expire(mbKey, 60 * 60 * 24 * 14);
   }
@@ -80,24 +82,29 @@ export class ReleasesService {
   // TODO: get by combined query
   // async getByCombinedQuery(query: string): Promise<any> {}
 
-  async getByArtistTitle(artist: string, title: string): Promise<any> {
-    // TODO: Recursively re-run function with swapped artist/title if no match
+  async getByArtistTitle(artist: string, title: string, options?: GetReleaseGroupOptions): Promise<any> {
+    // TODO: Run combined query if no match
     const filter = MetadataFilter.createSpotifyFilter().extend(MetadataFilter.createAmazonFilter());
     const filteredArtist = filter.filterField('albumArtist', artist);
     const filteredTitle = filter.filterField('album', title);
 
-    const cacheResult = await this.getCachedByArtistTitle(filteredArtist, filteredTitle);
+    if (!options.nocache) {
+      const cacheResult = await this.getCachedByArtistTitle(filteredArtist, filteredTitle);
 
-    if (cacheResult !== null) {
-      return cacheResult;
+      if (cacheResult !== null) {
+        return cacheResult;
+      }
     }
 
-    // TODO: Limit results to 5
     console.log(`Searching for ${filteredArtist} - ${filteredTitle}`);
-    const releaseGroupResults = await this.mbApi.searchReleaseGroup({
-      artist: filteredArtist,
-      releasegroup: filteredTitle,
-    });
+    const releaseGroupResults = await this.mbApi.searchReleaseGroup(
+      {
+        artist: filteredArtist,
+        releasegroup: filteredTitle,
+      },
+      undefined,
+      5,
+    );
 
     if (releaseGroupResults['release-groups'].length === 0) {
       throw 'Search results are empty';
@@ -110,17 +117,23 @@ export class ReleasesService {
     });
 
     this.setCachedByArtistTitle(
+      filteredArtist,
+      filteredTitle,
       {
-        artist: filteredArtist,
-        title: filteredTitle,
+        artist: sortedResults[0].searchResult['artist-credit'][0].artist.name,
+        title: sortedResults[0].searchResult.title,
+        // disambiguation: sortedResults[0].searchResult?.disambiguation,
         firstReleaseDate: sortedResults[0].searchResult['first-release-date'] ?? undefined,
         artistMbid: sortedResults[0].searchResult['artist-credit'][0].artist.id,
         mbid: sortedResults[0].searchResult.id,
-        mbConfidence: sortedResults[0].score,
+        mbConfidence: sortedResults[0].confidence,
         tracklist: ['track 1', 'track 2'],
       },
       sortedResults[0].searchResult,
     );
-    return { bestMatch: sortedResults[0], results: sortedResults };
+
+    // Until we have better debugging options, nocache is our way of seeing all search results
+    // TODO: Find better ways to debug search
+    return options.nocache ? sortedResults : sortedResults[0];
   }
 }

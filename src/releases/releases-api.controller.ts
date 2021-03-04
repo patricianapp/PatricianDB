@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ReleasesService } from 'src/releases/releases.service';
 
 @Controller('api')
@@ -15,8 +15,9 @@ export class ReleasesApiController {
   getByArtistTitle(
     @Param('artist') artist: string,
     @Param('title') title: string,
+    @Query('nocache') nocache: string,
   ): any {
-    const album = this.releasesService.getByArtistTitle(artist, title);
+    const album = this.releasesService.getByArtistTitle(artist, title, { nocache: typeof nocache === 'string' });
     return album;
   }
 }

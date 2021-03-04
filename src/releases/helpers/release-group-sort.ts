@@ -16,24 +16,22 @@ function findYearSimilarity(year1: number, year2: number): number {
 
 // TODO: Make PR to musicbrainz-api: IArtistCredit fields 'name' and 'joinphrase' should be optional
 // using array of artist credits because we are calculating this at the release group level
-function findHighestArtistCreditSimilarity(
-  artistInput: string,
-  artistCredits: Array<{ artist: IArtist }>,
-) {
+function findHighestArtistCreditSimilarity(artistInput: string, artistCredits: Array<{ artist: IArtist }>) {
   let highestNumber = 0;
 
   for (const artistCredit of artistCredits) {
     const aliases = [
       artistCredit.artist.name,
       artistCredit.artist['sort-name'],
-      ...(artistCredit.artist.aliases ?? []).flatMap(a => [
-        a.name,
-        a['sort-name'],
-      ]),
+      ...(artistCredit.artist.aliases ?? []).flatMap(a => [a.name, a['sort-name']]),
     ];
 
     for (const alias of aliases) {
-      const similarity = compareTwoStrings(artistInput, alias);
+      const similarity = Math.max(
+        compareTwoStrings(artistInput, alias),
+        compareTwoStrings('The' + artistInput, alias),
+        compareTwoStrings(artistInput, 'The' + alias),
+      );
       if (similarity > highestNumber) {
         highestNumber = similarity;
       }
@@ -45,13 +43,14 @@ function findHighestArtistCreditSimilarity(
   return highestNumber;
 }
 
-function findHighestReleaseTitleSimilarity(
-  titleInput: string,
-  releaseGroup: IReleaseGroup,
-) {
+function findHighestReleaseTitleSimilarity(titleInput: string, releaseGroup: IReleaseGroup) {
   let highestNumber = 0;
 
-  const mainTitleSimilarity = compareTwoStrings(titleInput, releaseGroup.title);
+  const mainTitleSimilarity = Math.max(
+    compareTwoStrings(titleInput, releaseGroup.title),
+    compareTwoStrings('The' + titleInput, releaseGroup.title),
+    compareTwoStrings(titleInput, 'The' + releaseGroup.title),
+  );
   highestNumber = mainTitleSimilarity;
   if (highestNumber === 1) {
     return highestNumber;
@@ -84,17 +83,14 @@ function preferAlbumType(releaseGroup: IReleaseGroup) {
   return 1;
 }
 
-function releaseCountScore(releaseGroup: IReleaseGroup, highestCount: number) {
+function releaseCountconfidence(releaseGroup: IReleaseGroup, highestCount: number) {
   return Math.min(MAX_RELEASE_COUNT, releaseGroup.count) / highestCount;
 }
 
 // Enables us to measure the "count" field on a 0 to 1 scale.
 // Usage: releaseGroup.count / highestCount = (value from 0 to 1)
 function findHighestCount(releaseGroupResults: Array<IReleaseGroup>) {
-  return Math.min(
-    MAX_RELEASE_COUNT,
-    Math.max(...releaseGroupResults.map(r => r.count)),
-  );
+  return Math.min(MAX_RELEASE_COUNT, Math.max(...releaseGroupResults.map(r => r.count)));
 }
 
 interface ReleaseGroupSortFields {
@@ -104,45 +100,38 @@ interface ReleaseGroupSortFields {
   yearInput?: number;
 }
 
-type SortedResults = Array<{ score: number; searchResult: IReleaseGroup }>;
+type SortedResults = Array<{ confidence: number; searchResult: IReleaseGroup }>;
 
-export function getSortedReleaseGroupResults(
-  fields: ReleaseGroupSortFields,
-): SortedResults {
+export function getSortedReleaseGroupResults(fields: ReleaseGroupSortFields): SortedResults {
   const { releaseGroupResults, titleInput, artistInput } = fields;
   const highestCount = findHighestCount(releaseGroupResults);
 
   const sortedResults: SortedResults = releaseGroupResults.map(searchResult => {
-    const scoreAddends: Array<{ name: string; value: number }> = [];
+    const confidenceAddends: Array<{ name: string; value: number }> = [];
 
-    scoreAddends.push({
+    confidenceAddends.push({
       name: 'artistSimilarity',
-      value: findHighestArtistCreditSimilarity(
-        artistInput,
-        searchResult['artist-credit'],
-      ),
+      value: findHighestArtistCreditSimilarity(artistInput, searchResult['artist-credit']),
     });
-    scoreAddends.push({
+    confidenceAddends.push({
       name: 'titleSimilarity',
       value: findHighestReleaseTitleSimilarity(titleInput, searchResult),
     });
-    scoreAddends.push({
-      name: 'releaseCountScore',
-      value: releaseCountScore(searchResult, highestCount),
+    confidenceAddends.push({
+      name: 'releaseCountconfidence',
+      value: releaseCountconfidence(searchResult, highestCount),
     });
-    scoreAddends.push({
+    confidenceAddends.push({
       name: 'albumType',
       value: preferAlbumType(searchResult),
     });
 
-    const score =
-      scoreAddends.map(a => a.value).reduce((a, b) => a + b) /
-      scoreAddends.length;
+    const confidence = confidenceAddends.map(a => a.value).reduce((a, b) => a + b) / confidenceAddends.length;
     return {
-      score,
-      scoreAddends,
+      confidence,
+      confidenceAddends,
       searchResult,
     };
   });
-  return sortedResults.sort((a, b) => b.score - a.score);
+  return sortedResults.sort((a, b) => b.confidence - a.confidence);
 }
