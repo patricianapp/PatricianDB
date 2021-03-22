@@ -1,6 +1,6 @@
 {
   "name": "patriciandb",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "",
   "author": "",
   "private": true,
@@ -31,7 +31,9 @@
     "graphql-playground-middleware-express": "^1.7.22",
     "metadata-filter": "^1.3.0",
     "musicbrainz-api": "^0.5.2",
+    "nanoid": "^3.1.22",
     "redis": "^3.0.2",
+    "redis-redisearch": "^1.0.1",
     "reflect-metadata": "^0.1.13",
     "rimraf": "^3.0.2",
     "rxjs": "^6.5.4",

@@ -1,11 +1,12 @@
 import { promisify } from 'util';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { IReleaseGroup, MusicBrainzApi } from 'musicbrainz-api';
 import * as MetadataFilter from 'metadata-filter';
 // import * as MetadataFilter from '../../lib/metadata-filter/src';
-import { createClient, RedisClient } from 'redis';
+import { RedisClient } from 'redis';
 import { getSortedReleaseGroupResults, SortedResults } from './helpers/release-group-sort';
 import { paramCase } from 'change-case';
+import { nanoid } from 'nanoid';
 
 const objectToArray = <T>(obj: T): Array<keyof T | string> => {
   for (const [key, value] of Object.entries(obj)) {
@@ -19,6 +20,7 @@ const objectToArray = <T>(obj: T): Array<keyof T | string> => {
 interface ReleaseGroupData {
   artist: string;
   title: string;
+  disambiguation?: string;
   coverArt?: string;
   firstReleaseDate?: string;
   artistMbid?: string;
@@ -44,37 +46,54 @@ export type ReleaseGroupResponseNoCache = SortedResults;
 
 @Injectable()
 export class ReleasesService {
+  private readonly logger = new Logger(ReleasesService.name);
   constructor(private readonly mbApi: MusicBrainzApi, private readonly redis: RedisClient) {}
 
-  private async getCachedByArtistTitle(artist: string, title: string) {
+  private async getCachedByArtistTitle(artist: string, title: string, disambiguation?: string) {
+    const ftSearchAsync = promisify((this.redis as any).ft_search).bind(this.redis);
     const hgetallAsync = promisify(this.redis.hgetall).bind(this.redis);
     const get = promisify(this.redis.get).bind(this.redis);
 
-    const releaseGroupData = await hgetallAsync(`release-group:${paramCase(artist)}:${paramCase(title)}`);
-    if (releaseGroupData === null) {
-      return null;
+    const releaseGroupData = await ftSearchAsync('idx:release-groups', `@artist:${artist} @title:${title}`);
+
+    // const releaseGroupData = await hgetallAsync(`release-group:${paramCase(artist)}:${paramCase(title)}`);
+    // if (releaseGroupData === null) {
+    //   return null;
+    // }
+    // const mbData = JSON.parse(await get(`mb-release-group:${releaseGroupData.mbid}`)) ?? {};
+    // return {
+    //   ...releaseGroupData,
+    //   ...mbData,
+    // };
+  }
+
+  private async saveResult(input: ReleaseGroupData, mb?: IReleaseGroup) {
+    const keyId = input.mbid ?? nanoid(5);
+    const key = `release-group:${keyId}`;
+    this.redis.hset(key, ...objectToArray(input));
+
+    if (mb) {
+      const mbKey = `mb-release-group:${mb.id}`;
+      this.redis.set(mbKey, JSON.stringify(mb));
+      this.redis.expire(mbKey, 60 * 60 * 24 * 14);
     }
-    const mbData = JSON.parse(await get(`mb-release-group:${releaseGroupData.mbid}`)) ?? {};
-    return {
-      ...releaseGroupData,
-      ...mbData,
-    };
   }
 
-  private async setCachedByArtistTitle(
-    searchArtist: string,
-    searchTitle: string,
-    input: ReleaseGroupData,
-    mb?: IReleaseGroup,
-  ) {
-    const releaseGroupKey = `release-group:${paramCase(searchArtist)}:${paramCase(searchTitle)}`;
-    this.redis.hset(releaseGroupKey, ...objectToArray(input));
+  // private async setCachedByArtistTitle(
+  //   searchArtist: string,
+  //   searchTitle: string,
+  //   input: ReleaseGroupData,
+  //   mb?: IReleaseGroup,
+  // ) {
+  //   const releaseGroupKey = `release-group:${paramCase(searchArtist)}:${paramCase(searchTitle)}`;
+  //   this.redis.hset(releaseGroupKey, ...objectToArray(input));
 
-    const mbKey = `mb-release-group:${mb.id}`;
-    this.redis.set(mbKey, JSON.stringify(mb));
-    this.redis.expire(mbKey, 60 * 60 * 24 * 14);
-  }
+  //   const mbKey = `mb-release-group:${mb.id}`;
+  //   this.redis.set(mbKey, JSON.stringify(mb));
+  //   this.redis.expire(mbKey, 60 * 60 * 24 * 14);
+  // }
 
+  // TODO: This should return our data entry, not MB
   async getById(id: string): Promise<any> {
     const releaseGroup = await this.mbApi.getReleaseGroup(id, ['artists', 'url-rels', 'releases']);
     return releaseGroup;
@@ -93,15 +112,15 @@ export class ReleasesService {
     const filteredArtist = filter.filterField('albumArtist', artist);
     const filteredTitle = filter.filterField('album', title);
 
-    if (options && !options.nocache) {
-      const cacheResult = await this.getCachedByArtistTitle(filteredArtist, filteredTitle);
+    // if (options && !options.nocache) {
+    //   const cacheResult = await this.getCachedByArtistTitle(filteredArtist, filteredTitle);
 
-      if (cacheResult !== null) {
-        return cacheResult;
-      }
-    }
+    //   if (cacheResult !== null) {
+    //     return cacheResult;
+    //   }
+    // }
 
-    console.log(`Searching for ${filteredArtist} - ${filteredTitle}`);
+    this.logger.log(`Searching for ${filteredArtist} - ${filteredTitle}`);
     const releaseGroupResults = await this.mbApi.searchReleaseGroup(
       {
         artist: filteredArtist,
@@ -124,7 +143,7 @@ export class ReleasesService {
     const resultToSave = {
       artist: sortedResults[0].searchResult['artist-credit'][0].artist.name,
       title: sortedResults[0].searchResult.title,
-      // disambiguation: sortedResults[0].searchResult?.disambiguation,
+      disambiguation: (sortedResults[0].searchResult as any)?.disambiguation,
       firstReleaseDate: sortedResults[0].searchResult['first-release-date'] ?? undefined,
       artistMbid: sortedResults[0].searchResult['artist-credit'][0].artist.id,
       mbid: sortedResults[0].searchResult.id,
@@ -132,7 +151,7 @@ export class ReleasesService {
       tracklist: ['track 1', 'track 2'],
     };
 
-    this.setCachedByArtistTitle(filteredArtist, filteredTitle, resultToSave, sortedResults[0].searchResult);
+    this.saveResult(resultToSave, sortedResults[0].searchResult);
 
     // Until we have better debugging options, nocache is our way of seeing all search results
     // TODO: Find better ways to debug search

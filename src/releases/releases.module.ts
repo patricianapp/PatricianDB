@@ -5,7 +5,9 @@ import { ReleasesService } from './releases.service';
 import { MbController } from './mb.controller';
 import { GraphBrainzController } from './graphbrainz.controller';
 import { MusicBrainzApi } from 'musicbrainz-api';
-import { createClient, RedisClient } from 'redis';
+import { RedisClient } from 'redis';
+import * as redis from 'redis';
+import * as redisearch from 'redis-redisearch';
 
 @Module({
   controllers: [ReleasesController, ReleasesApiController, MbController, GraphBrainzController],
@@ -24,7 +26,8 @@ import { createClient, RedisClient } from 'redis';
     {
       provide: RedisClient,
       useFactory: async (): Promise<RedisClient> => {
-        return createClient(process.env.DATABASE_URL ?? 'redis://localhost:6379');
+        redisearch(redis);
+        return redis.createClient(process.env.DATABASE_URL ?? 'redis://localhost:6379');
       },
     },
   ],
