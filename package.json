@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "mesh build --require dotenv/config",
-    "start": "mesh dev --require dotenv/config"
+    "dev": "mesh dev --require dotenv/config",
+    "start": "mesh start"
   },
   "repository": {
     "type": "git",
