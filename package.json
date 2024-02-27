@@ -4,7 +4,9 @@
   "description": "A GraphQL API to fetch music data from multiple public sources",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "mesh build --require dotenv/config",
+    "start": "mesh dev --require dotenv/config"
   },
   "repository": {
     "type": "git",
@@ -19,6 +21,8 @@
   "dependencies": {
     "@graphql-mesh/cli": "^0.88.9",
     "@graphql-mesh/graphql": "^0.96.6",
+    "axios": "^1.6.7",
+    "dotenv": "^16.4.5",
     "graphql": "^16.8.1"
   }
 }

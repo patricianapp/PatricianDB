@@ -1,0 +1,9 @@
+sources:
+  - name: SpotifyGraphQL
+    handler:
+      graphql:
+        endpoint: '{env.SPOTIFY_GRAPHQL_ENDPOINT}'
+        operationHeaders:
+          'x-token': '{context.spotifyToken.access_token}'
+
+additionalEnvelopPlugins: './plugins'
