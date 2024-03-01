@@ -7,3 +7,5 @@ sources:
           'x-token': '{context.spotifyToken.access_token}'
 
 additionalEnvelopPlugins: './plugins'
+serve:
+  playground: true
